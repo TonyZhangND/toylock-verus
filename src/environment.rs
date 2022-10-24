@@ -25,7 +25,7 @@ state_machine!{ Environment {
     }
 
     init!{ 
-        Init() {
+        initialize() {
             init sent_packets = Set::empty();
         }
     }

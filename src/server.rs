@@ -19,7 +19,7 @@ state_machine!{ Server {
     }
 
     init!{ 
-        Init(my_id: Id, size: nat) {
+        initialize(my_id: Id, size: nat) {
             init id = my_id;
             init n = size;
             if my_id == 0 {
@@ -38,7 +38,7 @@ state_machine!{ Server {
             require pre.has_lock;
             require send_io === Option::Some(Packet{
                 src: pre.id,
-                dst: (pre.id + 1) % (pre.n as int),
+                dst: (pre.id + 1) % pre.n,
                 msg: Message::Grant{ epoch: pre.epoch + 1 }
             });
             update has_lock = false;
@@ -56,6 +56,13 @@ state_machine!{ Server {
             require pkt.msg.get_Grant_epoch() > pre.epoch;
             update has_lock = true;
             update epoch = pkt.msg.get_Grant_epoch();
+        }
+    }
+
+    transition!{
+        stutter(recv_io: IoOpt, send_io: IoOpt) {
+            require send_io.is_None();
+            require recv_io.is_None();
         }
     }
 }}

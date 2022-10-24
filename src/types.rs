@@ -5,7 +5,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub type Id = int;
+pub type Id = nat;
 
 #[is_variant]
 pub enum Message {
@@ -14,8 +14,8 @@ pub enum Message {
 }
 
 pub struct Packet {
-    pub src: Id,
-    pub dst: Id,
+    pub src: nat,
+    pub dst: nat,
     pub msg: Message
 }
 }

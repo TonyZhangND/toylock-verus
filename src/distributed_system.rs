@@ -5,6 +5,8 @@ use state_machines_macros::state_machine;
 #[allow(unused_imports)]
 use crate::pervasive::{seq::*};
 
+#[allow(unused_imports)]
+use crate::types::*;
 use crate::environment::*;
 use crate::server::*;
 
@@ -20,12 +22,12 @@ state_machine!{ System {
     ) -> bool {
         &&& Seq::len(init_nodes) == size
         &&& Seq::len(node_configs) == size
-        &&& forall|i: int|#![auto] 0 <= i < size ==> node_configs[i] === Server::Config::Init(i, size)
+        &&& forall|i: int|#![auto] 0 <= i < size ==> node_configs[i] === Server::Config::initialize(i as nat, size)
         &&& forall|i: int|#![auto] 0 <= i < size ==> Server::State::init_by(init_nodes[i], node_configs[i])
     }
 
     init!{
-        Init(size: nat, 
+        initialize(size: nat, 
             init_env: Environment::State, env_config: Environment::Config,
             init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>, 
         ) {
@@ -33,6 +35,46 @@ state_machine!{ System {
             require State::init_servers(size, init_nodes, node_configs);
             init env = init_env;
             init nodes = init_nodes;
+        }
+    }
+
+    pub open spec fn transition_actor(nodes: Seq<Server::State>, new_nodes: Seq<Server::State>,
+        actor: Id, recv_io: IoOpt, send_io: IoOpt, node_step: Server::Step,
+    ) -> bool {
+        let size = Seq::len(nodes);
+        &&& Seq::len(new_nodes) == size
+        &&& 0 <= actor < Seq::len(nodes)
+        // non-actor nodes are unchanged
+        &&& forall|i: int|#![auto] 0<=i<size && i!=actor ==> new_nodes[i] === nodes[i]
+        // update the actor node
+        &&& match node_step {
+            Server::Step::grant(rcv, snd) => rcv === recv_io && snd === send_io,
+            Server::Step::accept(rcv, snd) => rcv === recv_io && snd === send_io,
+            Server::Step::stutter(rcv, snd) => rcv === recv_io && snd === send_io,
+            _ => false,
+        }
+        &&& Server::State::next_by(nodes[actor as int], new_nodes[actor as int], node_step)
+    }
+
+    transition!{
+        system_next(step: EnvStep, 
+            new_env: Environment::State, env_step: Environment::Step,
+            new_nodes: Seq<Server::State>, node_step: Server::Step
+        ) {
+            let actor = step.actor;
+            let recv_io = step.recv_io;
+            let send_io = step.send_io;
+            require Environment::State::valid_env_step(step);
+            // Transition the environment from env to env'
+            require env_step === Environment::Step::env_next(step);
+            require Environment::State::next_by(pre.env, new_env, env_step);
+            
+            // Transition the actor node from s to s'
+            require State::transition_actor(pre.nodes, new_nodes, actor, recv_io, send_io, node_step);
+
+            // Updates
+            update env = new_env;
+            update nodes = new_nodes;
         }
     }
 }}

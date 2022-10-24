@@ -19,7 +19,7 @@ pub struct EnvStep {
     pub send_io: IoOpt,
 }
 
-state_machine!{ Network {
+state_machine!{ Environment {
     fields { 
         pub sent_packets: Set<Packet>
     }

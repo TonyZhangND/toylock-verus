@@ -93,8 +93,6 @@ state_machine!{ System {
         size: nat, init_env: Environment::State, env_config: Environment::Config, 
         init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>) 
     {
-        assert(Seq::len(post.nodes) == size);
-        assert(post.n == size);
         assert forall |i: nat| 0 <= i < size ==> #[trigger] post.nodes[i as int].n == size
         by {
             if 0 <= i < size {
@@ -123,7 +121,8 @@ state_machine!{ System {
         step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
         new_nodes: Seq<Server::State>, node_step: Server::Step) 
     { 
-        assume(false);
+        assert(pre.n == post.n);
+        reveal(Server::State::next_by);
     }
 }}
 }

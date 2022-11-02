@@ -15,6 +15,7 @@ state_machine!{ System {
     fields {
         pub env: Environment::State,
         pub nodes: Seq<Server::State>,
+        pub n: nat
     }
 
     pub open spec fn init_servers(
@@ -35,6 +36,7 @@ state_machine!{ System {
             require State::init_servers(size, init_nodes, node_configs);
             init env = init_env;
             init nodes = init_nodes;
+            init n = size;
         }
     }
 
@@ -76,6 +78,52 @@ state_machine!{ System {
             update env = new_env;
             update nodes = new_nodes;
         }
+    }
+
+
+    #[invariant]
+    pub fn wf(self) -> bool {
+        &&& Seq::len(self.nodes) == self.n
+        &&& forall|i: nat|#![auto] 0 <= i < self.n ==> self.nodes[i as int].n === self.n
+        &&& forall|i: nat|#![auto] 0 <= i < self.n ==> self.nodes[i as int].id === i
+    }
+
+    #[inductive(initialize)]
+    pub fn init_wf(post: Self, 
+        size: nat, init_env: Environment::State, env_config: Environment::Config, 
+        init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>) 
+    {
+        assert(Seq::len(post.nodes) == size);
+        assert(post.n == size);
+        assert forall |i: nat| 0 <= i < size ==> #[trigger] post.nodes[i as int].n == size
+        by {
+            if 0 <= i < size {
+                let conf_i = Server::Config::initialize(i as nat, size);
+                assert(node_configs[i as int] === conf_i);  // trigger
+
+                if let Server::Config::initialize(idx, size_i) = conf_i {
+                    reveal(Server::State::init_by);   // init_by is opaque
+                }
+            }
+        }
+        assert forall |i: nat| 0 <= i < size ==> #[trigger] post.nodes[i as int].id === i
+        by {
+            if 0 <= i < size {
+                let conf_i = Server::Config::initialize(i as nat, size);
+                assert(node_configs[i as int] === conf_i);  // trigger
+                if let Server::Config::initialize(idx, size_i) = conf_i {
+                    reveal(Server::State::init_by);   // init_by is opaque
+                }
+            }
+        }
+    }
+
+    #[inductive(system_next)]
+    fn system_next_inductive(pre: Self, post: Self, 
+        step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
+        new_nodes: Seq<Server::State>, node_step: Server::Step) 
+    { 
+        assume(false);
     }
 }}
 }

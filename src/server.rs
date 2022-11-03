@@ -39,7 +39,7 @@ state_machine!{ Server {
             require send_io === Option::Some(Packet{
                 src: pre.id,
                 dst: (pre.id + 1) % pre.n,
-                msg: Message::Grant{ epoch: pre.epoch + 1 }
+                epoch: pre.epoch + 1 
             });
             update has_lock = false;
         }
@@ -52,10 +52,9 @@ state_machine!{ Server {
             require recv_io.is_Some();
             let pkt = recv_io.get_Some_0();
             require pkt.dst == pre.id;
-            require pkt.msg.is_Grant();
-            require pkt.msg.get_Grant_epoch() > pre.epoch;
+            require pkt.epoch > pre.epoch;
             update has_lock = true;
-            update epoch = pkt.msg.get_Grant_epoch();
+            update epoch = pkt.epoch;
         }
     }
 

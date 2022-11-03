@@ -88,16 +88,26 @@ state_machine!{ System {
     #[invariant]
     pub fn wf(self) -> bool {
         &&& Seq::len(self.nodes) == self.n
-        &&& forall|i: nat|#![auto] 0 <= i < self.n ==> self.nodes[i as int].n === self.n
-        &&& forall|i: nat|#![auto] 0 <= i < self.n ==> self.nodes[i as int].id === i
+        &&& forall|i: int|#![auto] 0 <= i < self.n ==> self.nodes[i].n === self.n
+        &&& forall|i: int|#![auto] 0 <= i < self.n ==> self.nodes[i].id === i as nat
     }
 
     #[invariant]
     pub fn safety(self) -> bool {
-        forall|i:nat, j:nat| 0 <= i < self.n && 0 <= j < self.n ==> (
-            #[trigger] self.nodes[i as int].has_lock && #[trigger] self.nodes[j as int].has_lock
+        forall|i:int, j:int| 0 <= i < self.n && 0 <= j < self.n ==> (
+            #[trigger] self.nodes[i].has_lock && #[trigger] self.nodes[j].has_lock
             ==> i == j
         )
+    }
+    
+    pub fn grant_epoch_inv(self) -> bool {
+        forall |p1:Packet, p2:Packet|
+            self.env.sent_packets.contains(p1) && 
+            self.env.sent_packets.contains(p2) && 
+            p1.epoch > self.nodes[(p1.dst) as int].epoch &&
+            p2.epoch > self.nodes[(p2.dst) as int].epoch
+        ==>
+            p1 === p2
     }
 
     /*************************************************************************************

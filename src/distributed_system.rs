@@ -81,6 +81,10 @@ state_machine!{ System {
     }
 
 
+    /*************************************************************************************
+    *                                    Proofs                                         *
+    *************************************************************************************/
+
     #[invariant]
     pub fn wf(self) -> bool {
         &&& Seq::len(self.nodes) == self.n
@@ -88,11 +92,38 @@ state_machine!{ System {
         &&& forall|i: nat|#![auto] 0 <= i < self.n ==> self.nodes[i as int].id === i
     }
 
+    #[invariant]
+    pub fn safety(self) -> bool {
+        forall|i:nat, j:nat| 0 <= i < self.n && 0 <= j < self.n ==> (
+            #[trigger] self.nodes[i as int].has_lock && #[trigger] self.nodes[j as int].has_lock
+            ==> i == j
+        )
+    }
+
+    /*************************************************************************************
+    *                                   Invaraints                                       *
+    *************************************************************************************/
+
     #[inductive(initialize)]
-    pub fn init_wf(post: Self, 
+    pub fn init_inv(post: Self, 
         size: nat, init_env: Environment::State, env_config: Environment::Config, 
         init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>) 
     {
+        assume(false);
+        State::lemma_init_wf(post, size, init_env, env_config, init_nodes, node_configs);
+    }
+
+    // Prove that init ensures well-formed
+    proof fn lemma_init_wf(post: Self, 
+        size: nat, init_env: Environment::State, env_config: Environment::Config, 
+        init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>)
+        requires
+            State::init_by(post, 
+                Config::initialize(size, init_env, env_config, init_nodes, node_configs))  // Todo(verus): this is terrible
+        ensures
+            post.wf()
+    {
+        reveal(State::init_by);   // init_by is opaque
         assert forall |i: nat| 0 <= i < size ==> #[trigger] post.nodes[i as int].n == size
         by {
             if 0 <= i < size {
@@ -121,6 +152,24 @@ state_machine!{ System {
         step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
         new_nodes: Seq<Server::State>, node_step: Server::Step) 
     { 
+        assume(false);
+        State::lemma_next_wf(pre, post, step, new_env, env_step, new_nodes, node_step);
+        assert(pre.n == post.n);
+        reveal(Server::State::next_by);
+    }
+
+    // Prove that next preserves well-formed
+    proof fn lemma_next_wf(pre: Self, post: Self, 
+        step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
+        new_nodes: Seq<Server::State>, node_step: Server::Step) 
+        requires
+            pre.wf(),
+            State::next_by(pre, post, 
+                Step::system_next(step, new_env, env_step, new_nodes, node_step))  // Todo(verus): this is terrible
+        ensures
+            post.wf()
+    {
+        reveal(State::next_by);
         assert(pre.n == post.n);
         reveal(Server::State::next_by);
     }

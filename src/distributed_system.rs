@@ -94,18 +94,19 @@ state_machine!{ System {
 
     #[invariant]
     pub fn safety(self) -> bool {
-        forall|i:int, j:int| 0 <= i < self.n && 0 <= j < self.n ==> (
-            #[trigger] self.nodes[i].has_lock && #[trigger] self.nodes[j].has_lock
+        forall|i:int, j:int|  #![auto] 0 <= i < self.n && 0 <= j < self.n ==> (
+            self.nodes[i].has_lock && self.nodes[j].has_lock
             ==> i == j
         )
     }
     
-    pub fn grant_epoch_inv(self) -> bool {
-        forall |p1:Packet, p2:Packet|
+    #[invariant]
+    pub open spec fn grant_epoch_inv(self) -> bool {
+        forall |p1:Packet, p2:Packet| #![auto]
             self.env.sent_packets.contains(p1) && 
             self.env.sent_packets.contains(p2) && 
-            p1.epoch > self.nodes[(p1.dst) as int].epoch &&
-            p2.epoch > self.nodes[(p2.dst) as int].epoch
+            p1.epoch > self.nodes[p1.dst as int].epoch &&
+            p2.epoch > self.nodes[p2.dst as int].epoch
         ==>
             p1 === p2
     }
@@ -119,17 +120,34 @@ state_machine!{ System {
         size: nat, init_env: Environment::State, env_config: Environment::Config, 
         init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>) 
     {
-        assume(false);
         State::lemma_init_wf(post, size, init_env, env_config, init_nodes, node_configs);
+
+        // Prove safety
+        assert(size == post.n);
+        assert forall|i:int, j:int| 0 <= i < size && 0 <= j < size ==> 
+            #[trigger] post.nodes[i].has_lock && #[trigger] post.nodes[j].has_lock
+            ==> i == j
+        by {
+            if 0 <= i < size && 0 <= j < size && post.nodes[i].has_lock && post.nodes[j].has_lock {
+                reveal(Server::State::init_by);
+                assert(node_configs[i] === Server::Config::initialize(i as nat, size));  // trigger
+            }
+        }
+
+
+        assert(post.safety());
+        
+        // Prove grant_epoch_inv
+        assume(post.grant_epoch_inv());
     }
 
     // Prove that init ensures well-formed
     proof fn lemma_init_wf(post: Self, 
         size: nat, init_env: Environment::State, env_config: Environment::Config, 
         init_nodes: Seq<Server::State>, node_configs: Seq<Server::Config>)
-        requires
-            State::init_by(post, 
-                Config::initialize(size, init_env, env_config, init_nodes, node_configs))  // Todo(verus): this is terrible
+        requires State::initialize(post, size, init_env,
+            env_config, init_nodes,
+            node_configs)
         ensures
             post.wf()
     {
@@ -162,8 +180,8 @@ state_machine!{ System {
         step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
         new_nodes: Seq<Server::State>, node_step: Server::Step) 
     { 
-        assume(false);
         State::lemma_next_wf(pre, post, step, new_env, env_step, new_nodes, node_step);
+        assume(false);
         assert(pre.n == post.n);
         reveal(Server::State::next_by);
     }
@@ -173,9 +191,9 @@ state_machine!{ System {
         step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
         new_nodes: Seq<Server::State>, node_step: Server::Step) 
         requires
-            pre.wf(),
-            State::next_by(pre, post, 
-                Step::system_next(step, new_env, env_step, new_nodes, node_step))  // Todo(verus): this is terrible
+            pre.invariant(),
+            State::system_next_strong(pre, post,
+                                  step, new_env, env_step, new_nodes, node_step)
         ensures
             post.wf()
     {

@@ -120,10 +120,7 @@ state_machine!{ System {
             p.epoch > self.nodes[p.dst as int].epoch
         )
         ==>
-        (
-        forall|i:int|  #![auto] 0 <= i < self.n ==> 
-            !self.nodes[i].has_lock
-        )
+        self.nobody_has_lock()
     }
 
     /*************************************************************************************
@@ -234,12 +231,24 @@ state_machine!{ System {
         ensures
             post.safety()
     {
-        assert forall|i:int, j:int| 0 <= i < post.n && 0 <= j < post.n ==> (
-            #[trigger] post.nodes[i].has_lock && #[trigger] post.nodes[j].has_lock
-            ==> i == j
-        ) by {
-            assume(false);
-        }
+        /* Two cases:
+            1. No one holds lock in pre. Then we are golden
+            2. Someone holds lock in pre. Then by grant_epoch_existence_inv in pre,
+                no one can acquire lock in post
+            But apparently, automation is so good that I don't need manual analysis...
+        */
+            reveal(Environment::State::next_by);
+            reveal(Server::State::next_by);
+    }
+
+
+
+    /*************************************************************************************
+    *                                      Utils                                         *
+    *************************************************************************************/
+
+    pub open spec fn nobody_has_lock(self) -> bool {
+        forall|i:int|  #![auto] 0 <= i < self.n ==> !self.nodes[i].has_lock
     }
 }}
 }

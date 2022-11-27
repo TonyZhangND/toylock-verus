@@ -194,7 +194,8 @@ state_machine!{ System {
     { 
         State::lemma_next_wf(pre, post, step, new_env, env_step, new_nodes, node_step);
         State::lemma_next_safety(pre, post, step, new_env, env_step, new_nodes, node_step);
-        assume(false);
+        State::lemma_next_grant_epoch_inv(pre, post, step, new_env, env_step, new_nodes, node_step);
+        State::lemma_next_grant_epoch_existence_inv(pre, post, step, new_env, env_step, new_nodes, node_step);
         assert(pre.n == post.n);
         reveal(Server::State::next_by);
     }
@@ -220,6 +221,36 @@ state_machine!{ System {
         }
     }
 
+    // Prove that next preserves grant_epoch_inv
+    proof fn lemma_next_grant_epoch_inv(pre: Self, post: Self, 
+        step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
+        new_nodes: Seq<Server::State>, node_step: Server::Step) 
+        requires
+            pre.invariant(),
+            State::system_next_strong(pre, post,
+                                  step, new_env, env_step, new_nodes, node_step)
+        ensures
+            post.grant_epoch_inv()
+    {
+        reveal(Environment::State::next_by);
+        reveal(Server::State::next_by);
+    }
+
+    // Prove that next preserves grant_epoch_inv
+    proof fn lemma_next_grant_epoch_existence_inv(pre: Self, post: Self, 
+        step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
+        new_nodes: Seq<Server::State>, node_step: Server::Step) 
+        requires
+            pre.invariant(),
+            State::system_next_strong(pre, post,
+                                  step, new_env, env_step, new_nodes, node_step)
+        ensures
+            post.grant_epoch_existence_inv()
+    {
+        reveal(Environment::State::next_by);
+        reveal(Server::State::next_by);
+    }
+
     // Prove that next preserves safety
     proof fn lemma_next_safety(pre: Self, post: Self, 
         step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
@@ -242,13 +273,16 @@ state_machine!{ System {
     }
 
 
-
     /*************************************************************************************
     *                                      Utils                                         *
     *************************************************************************************/
 
     pub open spec fn nobody_has_lock(self) -> bool {
-        forall|i:int|  #![auto] 0 <= i < self.n ==> !self.nodes[i].has_lock
+        forall |i:int|  #![auto] 0 <= i < self.n ==> !self.nodes[i].has_lock
+    }
+
+    pub open spec fn somebody_has_lock(self) -> bool {
+        exists |i:int|  #![auto] 0 <= i < self.n && self.nodes[i].has_lock
     }
 }}
 }

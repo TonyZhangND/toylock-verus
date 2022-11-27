@@ -69,7 +69,7 @@ state_machine!{ System {
             require Environment::State::valid_env_step(step);
             // Transition the environment from env to env'
             require env_step === Environment::Step::env_next(step);
-            require Environment::State::next_by(pre.env, new_env, env_step);
+            require Environment::State::next_by(pre.env, new_env, env_step);  // In verus, constraints on next state must be done using require clauses
             
             // Transition the actor node from s to s'
             require State::transition_actor(pre.nodes, new_nodes, actor, recv_io, send_io, node_step);
@@ -82,7 +82,7 @@ state_machine!{ System {
 
 
     /*************************************************************************************
-    *                                    Proofs                                         *
+    *                                   Invariants                                       *
     *************************************************************************************/
 
     #[invariant]
@@ -90,6 +90,7 @@ state_machine!{ System {
         &&& Seq::len(self.nodes) == self.n
         &&& forall|i: int|#![auto] 0 <= i < self.n ==> self.nodes[i].n === self.n
         &&& forall|i: int|#![auto] 0 <= i < self.n ==> self.nodes[i].id === i as nat
+        &&& forall |p:Packet| self.env.sent_packets.contains(p) ==> 0 <= p.dst < self.n
     }
 
     #[invariant]
@@ -111,8 +112,22 @@ state_machine!{ System {
             p1 === p2
     }
 
+    #[invariant]
+    pub open spec fn grant_epoch_existence_inv(self) -> bool {
+        (exists|p:Packet| #![auto]
+            self.env.sent_packets.contains(p) && 
+            0 <= p.dst < self.n && 
+            p.epoch > self.nodes[p.dst as int].epoch
+        )
+        ==>
+        (
+        forall|i:int|  #![auto] 0 <= i < self.n ==> 
+            !self.nodes[i].has_lock
+        )
+    }
+
     /*************************************************************************************
-    *                                   Invaraints                                       *
+    *                                     Proofs                                         *
     *************************************************************************************/
 
     #[inductive(initialize)]
@@ -133,12 +148,9 @@ state_machine!{ System {
                 assert(node_configs[i] === Server::Config::initialize(i as nat, size));  // trigger
             }
         }
-
-
-        assert(post.safety());
         
-        // Prove grant_epoch_inv
-        assume(post.grant_epoch_inv());
+        // Prove grant_epoch_inv and grant_epoch_existence_inv
+        reveal(Environment::State::init_by);
     }
 
     // Prove that init ensures well-formed
@@ -173,6 +185,9 @@ state_machine!{ System {
                 }
             }
         }
+        assert forall |p:Packet| post.env.sent_packets.contains(p) ==> 0 <= p.dst < post.n by {
+            reveal(Environment::State::init_by);
+        }
     }
 
     #[inductive(system_next)]
@@ -181,6 +196,7 @@ state_machine!{ System {
         new_nodes: Seq<Server::State>, node_step: Server::Step) 
     { 
         State::lemma_next_wf(pre, post, step, new_env, env_step, new_nodes, node_step);
+        State::lemma_next_safety(pre, post, step, new_env, env_step, new_nodes, node_step);
         assume(false);
         assert(pre.n == post.n);
         reveal(Server::State::next_by);
@@ -200,6 +216,30 @@ state_machine!{ System {
         reveal(State::next_by);
         assert(pre.n == post.n);
         reveal(Server::State::next_by);
+        
+        assert forall |p:Packet| post.env.sent_packets.contains(p) ==> 0 <= p.dst < post.n by {
+            reveal(Environment::State::next_by);
+            let s = pre.nodes[step.actor as int]; // trigger
+        }
+    }
+
+    // Prove that next preserves safety
+    proof fn lemma_next_safety(pre: Self, post: Self, 
+        step: EnvStep, new_env: Environment::State, env_step: Environment::Step, 
+        new_nodes: Seq<Server::State>, node_step: Server::Step) 
+        requires
+            pre.invariant(),
+            State::system_next_strong(pre, post,
+                                  step, new_env, env_step, new_nodes, node_step)
+        ensures
+            post.safety()
+    {
+        assert forall|i:int, j:int| 0 <= i < post.n && 0 <= j < post.n ==> (
+            #[trigger] post.nodes[i].has_lock && #[trigger] post.nodes[j].has_lock
+            ==> i == j
+        ) by {
+            assume(false);
+        }
     }
 }}
 }

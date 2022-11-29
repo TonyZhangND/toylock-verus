@@ -135,7 +135,6 @@ state_machine!{ System {
         State::lemma_init_wf(post, size, init_env, env_config, init_nodes, node_configs);
 
         // Prove safety
-        assert(size == post.n);
         assert forall|i:int, j:int| 0 <= i < size && 0 <= j < size ==> 
             #[trigger] post.nodes[i].has_lock && #[trigger] post.nodes[j].has_lock
             ==> i == j
@@ -168,7 +167,7 @@ state_machine!{ System {
                 assert(node_configs[i as int] === conf_i);  // trigger
 
                 if let Server::Config::initialize(idx, size_i) = conf_i {
-                    reveal(Server::State::init_by);   // init_by is opaque
+                    reveal(Server::State::init_by);
                 }
             }
         }
@@ -178,7 +177,7 @@ state_machine!{ System {
                 let conf_i = Server::Config::initialize(i as nat, size);
                 assert(node_configs[i as int] === conf_i);  // trigger
                 if let Server::Config::initialize(idx, size_i) = conf_i {
-                    reveal(Server::State::init_by);   // init_by is opaque
+                    reveal(Server::State::init_by);
                 }
             }
         }
@@ -196,7 +195,6 @@ state_machine!{ System {
         State::lemma_next_safety(pre, post, step, new_env, env_step, new_nodes, node_step);
         State::lemma_next_grant_epoch_inv(pre, post, step, new_env, env_step, new_nodes, node_step);
         State::lemma_next_grant_epoch_existence_inv(pre, post, step, new_env, env_step, new_nodes, node_step);
-        assert(pre.n == post.n);
         reveal(Server::State::next_by);
     }
 
@@ -212,13 +210,8 @@ state_machine!{ System {
             post.wf()
     {
         reveal(State::next_by);
-        assert(pre.n == post.n);
         reveal(Server::State::next_by);
-        
-        assert forall |p:Packet| post.env.sent_packets.contains(p) ==> 0 <= p.dst < post.n by {
-            reveal(Environment::State::next_by);
-            let s = pre.nodes[step.actor as int]; // trigger
-        }
+        reveal(Environment::State::next_by);
     }
 
     // Prove that next preserves grant_epoch_inv

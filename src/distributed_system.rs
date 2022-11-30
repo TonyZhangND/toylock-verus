@@ -212,6 +212,7 @@ state_machine!{ System {
         reveal(State::next_by);
         reveal(Server::State::next_by);
         reveal(Environment::State::next_by);
+        let s = pre.nodes[step.actor as int]; // trigger
     }
 
     // Prove that next preserves grant_epoch_inv

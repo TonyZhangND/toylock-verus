@@ -29,17 +29,21 @@ impl Server {
         }
     }
 
-    pub open spec fn grant(self) -> (Server, Lock)
+    pub open spec fn grant(self) -> (Server, Option<Lock>)
         // recommends self.token.is_Some()
     {
-        let mut lock = self.token.get_Some_0();
-        let new_server = Server {   // creating new server because verus does not allow &mut self in spec functions
-            id: self.id,
-            token: Option::None,
-            epoch: self.epoch,
-            n: self.n,
-        };
-        (new_server, lock)
+        if self.has_lock() {
+            let mut lock = self.token.get_Some_0();
+            let new_server = Server {   // creating new server because verus does not allow &mut self in spec functions
+                id: self.id,
+                token: Option::None,
+                epoch: self.epoch,
+                n: self.n,
+            };
+            (new_server, Option::Some(lock))
+        } else {
+            (self, Option::None)
+        }
     }
 
     pub open spec fn accept(self, lock: Lock, new_epoch: nat) -> Server 
@@ -57,6 +61,10 @@ impl Server {
             new_server
         }
     } 
+
+    pub open spec fn has_lock(self) -> bool {
+        self.token.is_Some()
+    }
 }
 
 }  // verus!

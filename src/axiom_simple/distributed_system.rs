@@ -119,6 +119,34 @@ pub proof fn inv_next(sys: System, actor: int, grant_step: bool)
     ensures inv(sys.system_next(actor, grant_step))
 {}
 
+
+/****************************************************************************************
+ *                             Proof with linearity axiom                               *
+*****************************************************************************************/
+
+
+pub open spec fn inv_linear(sys: System) -> bool {
+    &&& wf(sys)
+    &&& safety(sys)
+}
+
+pub open spec fn linearity_axiom(sys: System) -> bool {
+    sys.in_flight_lock.is_Some() <==> nobody_has_lock(sys)
+}
+
+pub proof fn inv_init_linear(size: nat)
+    ensures inv_linear(System::initialize(size))
+{}
+
+pub proof fn inv_next_linear(sys: System, actor: int, grant_step: bool)
+    requires 
+        inv_linear(sys),
+        0 <= actor < sys.n,
+        linearity_axiom(sys),
+        linearity_axiom(sys.system_next(actor, grant_step))
+    ensures inv_linear(sys.system_next(actor, grant_step))
+{}
+
 /*************************************************************************************
 *                                      Utils                                         *
 *************************************************************************************/

@@ -131,7 +131,8 @@ pub open spec fn inv_linear(sys: System) -> bool {
 }
 
 pub open spec fn linearity_axiom(sys: System) -> bool {
-    sys.in_flight_lock.is_Some() <==> nobody_has_lock(sys)
+    &&& sys.in_flight_lock.is_Some() ==> nobody_has_lock(sys)
+    &&& safety(sys)
 }
 
 pub proof fn inv_init_linear(size: nat)

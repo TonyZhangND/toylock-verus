@@ -21,6 +21,8 @@ impl Server {
     // Constructor
     pub proof fn initialize(my_id: Id, size: nat) -> (s: Server) 
         ensures init_node_0_has_lock(s),
+                s.id == my_id,
+                s.n == size,
     {
         let lock = Lock{};
         Server {

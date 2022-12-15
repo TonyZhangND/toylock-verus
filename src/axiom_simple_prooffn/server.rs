@@ -20,7 +20,7 @@ impl Server {
 
     // Constructor
     pub proof fn initialize(my_id: Id, size: nat) -> (s: Server) 
-        // ensures wf()
+        ensures init_node_0_has_lock(s),
     {
         let lock = Lock{};
         Server {
@@ -31,16 +31,8 @@ impl Server {
         }
     }
 
-    pub proof fn new() -> Server {
-        Server {
-            id: 0,
-            token: Option::None,
-            epoch: 0,
-            n: 0,
-        }
-    }
-
-    pub proof fn grant(&mut self) -> Option<Lock>
+    pub proof fn grant(&mut self) -> (opt_lock: Option<Lock>)
+        ensures !self.has_lock()
     {
         if self.has_lock() {
             let mut lock = self.token.get_Some_0();
@@ -51,14 +43,16 @@ impl Server {
         }
     }
 
-    pub proof fn accept(&mut self, lock: Lock, new_epoch: nat)
-
+    pub proof fn accept(&mut self, in_flight_lock: Option<Lock>, new_epoch: nat) -> (opt_lock: Option<Lock>)
+        ensures old(self).token.is_None() && self.token.is_Some() ==> opt_lock.is_None()
     {
-        if new_epoch > self.epoch && self.token.is_None() {
-            self.token = Option::Some(lock);
+        if in_flight_lock.is_Some() && new_epoch > self.epoch && self.token.is_None() {
+            self.token = Option::Some(in_flight_lock.get_Some_0());
             self.epoch = new_epoch;
+            return Option::None;
         }
-    } 
+        in_flight_lock
+    }
 
     pub open spec fn has_lock(self) -> bool {
         self.token.is_Some()

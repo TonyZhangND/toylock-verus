@@ -49,15 +49,13 @@ impl System {
     pub proof fn next_one_node_accept(&mut self, actor: int)
         requires 0 <= actor < old(self).n
     {
-        if self.in_flight_lock.is_Some() {
-            let mut server;
-            if actor == 0 {
-                server = self.node0;
-            } else {
-                server = self.node1;
-            }
-            server.accept(self.in_flight_lock.get_Some_0(), self.curr_epoch);
+        let mut server;
+        if actor == 0 {
+            server = self.node0;
+        } else {
+            server = self.node1;
         }
+        server.accept(self.in_flight_lock, self.curr_epoch);
     }
 
     pub proof fn system_next(&mut self, actor: int, grant_step: bool) 

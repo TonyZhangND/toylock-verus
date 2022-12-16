@@ -23,6 +23,8 @@ impl System {
     pub proof fn initialize() -> (sys: System) 
         ensures 
             sys.wf(),
+            sys.safety(),
+            sys.in_flight_lock_property()
     {
         System {
             node0: Server::initialize(0, 2),
@@ -37,19 +39,25 @@ impl System {
         requires 
             0 <= actor < old(self).n,
             old(self).wf(),
+            old(self).safety(),
+            old(self).in_flight_lock_property()
         ensures 
-            self.wf()
+            self.wf(),
+            self.safety(),
+            self.in_flight_lock_property()
     {
-        let mut sever;
         if actor == 0 {
-            sever = self.node0;
+            let lock_opt = self.node0.grant();
+            if lock_opt.is_Some() {
+                self.curr_epoch = self.node0.epoch + 1;
+                self.in_flight_lock = lock_opt;
+            }
         } else {
-            sever = self.node1;
-        }
-        let lock_opt = sever.grant();
-        if lock_opt.is_Some() {
-            self.curr_epoch = sever.epoch + 1;
-            self.in_flight_lock = lock_opt;
+            let lock_opt = self.node1.grant();
+            if lock_opt.is_Some() {
+                self.curr_epoch = self.node1.epoch + 1;
+                self.in_flight_lock = lock_opt;
+            }
         }
     }
 
@@ -57,24 +65,30 @@ impl System {
         requires 
             0 <= actor < old(self).n,
             old(self).wf(),
+            old(self).safety(),
+            old(self).in_flight_lock_property()
         ensures 
-            self.wf()
+            self.wf(),
+            self.safety(),
+            self.in_flight_lock_property()
     {
-        let mut server;
         if actor == 0 {
-            server = self.node0;
+            self.in_flight_lock = self.node0.accept(self.in_flight_lock, self.curr_epoch);
         } else {
-            server = self.node1;
+            self.in_flight_lock = self.node1.accept(self.in_flight_lock, self.curr_epoch);
         }
-        server.accept(self.in_flight_lock, self.curr_epoch);
     }
 
     pub proof fn system_next(&mut self, actor: int, grant_step: bool) 
         requires 
             0 <= actor < old(self).n,
             old(self).wf(),
+            old(self).safety(),
+            old(self).in_flight_lock_property(),
         ensures 
-            self.wf()
+            self.wf(),
+            self.safety(),
+            self.in_flight_lock_property(),
     {
         if grant_step {
             self.next_one_node_grant(actor)
@@ -93,39 +107,21 @@ impl System {
         &&& self.node1.id == 1
     }
 
+    pub open spec fn safety(self) -> bool {
+        ! (self.node0.has_lock() && self.node1.has_lock())
+    }
+
+    pub open spec fn in_flight_lock_property(self) -> bool {
+        self.somebody_has_lock() ==> self.in_flight_lock.is_None()
+    }
+
+    pub open spec fn nobody_has_lock(self) -> bool {
+        ! self.somebody_has_lock()
+    }
+    
+    pub open spec fn somebody_has_lock(self) -> bool {
+        self.node0.has_lock() || self.node1.has_lock()
+    }
+
 } // impl System
-
-pub open spec fn safety(sys: &System) -> bool {
-    ! (sys.node0.has_lock() && sys.node1.has_lock())
-}
-
-pub open spec fn in_flight_lock_property(sys: &System) -> bool {
-    somebody_has_lock(sys) ==> sys.in_flight_lock.is_None()
-}
-
-// pub proof fn inv_init(size: nat)
-//     ensures inv(System::initialize(size))
-// {}
-
-// pub proof fn inv_next(sys: System, actor: int, grant_step: bool)
-//     requires 
-//         inv(sys),
-//         0 <= actor < sys.n,
-//     ensures inv(sys.system_next(actor, grant_step))
-// {}
-
-
-/*****************************************************************************************
-*                                        Utils                                           *
-*****************************************************************************************/
-
-pub open spec fn nobody_has_lock(sys: &System) -> bool {
-    ! somebody_has_lock(sys)
-}
-
-pub open spec fn somebody_has_lock(sys: &System) -> bool {
-    sys.node0.has_lock() || !sys.node1.has_lock()
-}
-
-
 }  // verus!

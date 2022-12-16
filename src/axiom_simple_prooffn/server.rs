@@ -34,7 +34,11 @@ impl Server {
     }
 
     pub proof fn grant(&mut self) -> (opt_lock: Option<Lock>)
-        ensures !self.has_lock()
+        ensures 
+            self.id == old(self).id,
+            self.n == old(self).n,
+            !self.has_lock(),
+            !old(self).has_lock() ==> opt_lock.is_None()
     {
         if self.has_lock() {
             let mut lock = self.token.get_Some_0();
@@ -46,14 +50,18 @@ impl Server {
     }
 
     pub proof fn accept(&mut self, in_flight_lock: Option<Lock>, new_epoch: nat) -> (opt_lock: Option<Lock>)
-        ensures old(self).token.is_None() && self.token.is_Some() ==> opt_lock.is_None()
+        ensures 
+            self.id == old(self).id,
+            self.n == old(self).n,
+            old(self).token.is_None() && self.token.is_Some() ==> opt_lock.is_None(),
+            in_flight_lock.is_None() ==> opt_lock.is_None() && self.token === old(self).token
     {
         if in_flight_lock.is_Some() && new_epoch > self.epoch && self.token.is_None() {
             self.token = Option::Some(in_flight_lock.get_Some_0());
             self.epoch = new_epoch;
             return Option::None;
         }
-        in_flight_lock
+        return in_flight_lock;
     }
 
     pub open spec fn has_lock(self) -> bool {

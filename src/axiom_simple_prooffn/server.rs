@@ -11,7 +11,7 @@ verus! {
 
 pub struct Server {
     pub id: Id,
-    pub token: Option<Lock>,
+    pub tracked token: Option<Lock>,
     pub epoch: nat,
     pub n: nat,
 }
@@ -41,13 +41,35 @@ impl Server {
             !old(self).has_lock() ==> opt_lock.is_None()
     {
         if self.has_lock() {
-            let mut lock = self.token.get_Some_0();
-            self.token = Option::None;
-            Option::Some(lock)
+            if let Option::Some(lock) = self.token {
+                self.token = Option::None;
+                return Option::Some(lock);
+            }
+            return Option::None;
         } else {
-            Option::None
+            return Option::None;
         }
     }
+
+    // pub proof fn grant_bogus(tracked &mut self) -> (opt_lock: Option<Lock>)
+    //     ensures 
+    //         self.id == old(self).id,
+    //         self.n == old(self).n,
+    //         // !self.has_lock(),
+    //         !old(self).has_lock() ==> opt_lock.is_None()
+    // {
+    //     // let tracked mut server = tracked self;
+    //     if self.has_lock() {
+    //         let tracked lock = tracked self.token.get_Some_0();
+    //         self.token = Option::Some(lock);
+    //         // Option::Some(lock)
+
+
+    //         Option::None
+    //     } else {
+    //         Option::None
+    //     }
+    // }
 
     pub proof fn accept(&mut self, in_flight_lock: Option<Lock>, new_epoch: nat) -> (opt_lock: Option<Lock>)
         ensures 
@@ -57,8 +79,10 @@ impl Server {
             in_flight_lock.is_None() ==> opt_lock.is_None() && self.token === old(self).token
     {
         if in_flight_lock.is_Some() && new_epoch > self.epoch && self.token.is_None() {
-            self.token = Option::Some(in_flight_lock.get_Some_0());
-            self.epoch = new_epoch;
+            if let Option::Some(lock) = in_flight_lock {
+                self.token = Option::Some(lock);
+                self.epoch = new_epoch;
+            }
             return Option::None;
         }
         return in_flight_lock;

@@ -22,9 +22,7 @@ impl System {
     // Constructor
     pub proof fn initialize() -> (sys: System) 
         ensures 
-            sys.wf(),
-            sys.safety(),
-            sys.in_flight_lock_property()
+            sys.inv()
     {
         System {
             node0: Server::initialize(0, 2),
@@ -38,13 +36,9 @@ impl System {
     pub proof fn next_one_node_grant(&mut self, actor: int)
         requires 
             0 <= actor < old(self).n,
-            old(self).wf(),
-            old(self).safety(),
-            old(self).in_flight_lock_property()
+            old(self).inv(),
         ensures 
-            self.wf(),
-            self.safety(),
-            self.in_flight_lock_property()
+        self.inv()
     {
         if actor == 0 {
             let lock_opt = self.node0.grant();
@@ -64,13 +58,9 @@ impl System {
     pub proof fn next_one_node_accept(&mut self, actor: int)
         requires 
             0 <= actor < old(self).n,
-            old(self).wf(),
-            old(self).safety(),
-            old(self).in_flight_lock_property()
+            old(self).inv(),
         ensures 
-            self.wf(),
-            self.safety(),
-            self.in_flight_lock_property()
+            self.inv()
     {
         if actor == 0 {
             self.in_flight_lock = self.node0.accept(self.in_flight_lock, self.curr_epoch);
@@ -82,13 +72,9 @@ impl System {
     pub proof fn system_next(&mut self, actor: int, grant_step: bool) 
         requires 
             0 <= actor < old(self).n,
-            old(self).wf(),
-            old(self).safety(),
-            old(self).in_flight_lock_property(),
+            old(self).inv(),
         ensures 
-            self.wf(),
-            self.safety(),
-            self.in_flight_lock_property(),
+            self.inv()
     {
         if grant_step {
             self.next_one_node_grant(actor)
@@ -105,6 +91,12 @@ impl System {
         &&& self.node1.n == self.n
         &&& self.node0.id == 0
         &&& self.node1.id == 1
+    }
+
+    pub open spec fn inv(self) -> bool {
+        &&& self.wf()
+        &&& self.safety()
+        &&& self.in_flight_lock_property()
     }
 
     pub open spec fn safety(self) -> bool {

@@ -11,7 +11,7 @@ verus! {
 
 pub struct Server {
     pub id: Id,
-    pub tracked token: Option<Lock>,
+    pub token: Option<Lock>,
     pub epoch: nat,
     pub n: nat,
 }
@@ -41,7 +41,8 @@ impl Server {
             !old(self).has_lock() ==> opt_lock.is_None()
     {
         if self.has_lock() {
-            if let Option::Some(lock) = self.token {
+            let token = self.token;
+            if let Option::Some(lock) = token {
                 self.token = Option::None;
                 return Option::Some(lock);
             }
@@ -51,23 +52,23 @@ impl Server {
         }
     }
 
-    // pub proof fn grant_bogus(tracked &mut self) -> (opt_lock: Option<Lock>)
-    //     ensures 
-    //         self.id == old(self).id,
-    //         self.n == old(self).n,
-    //         // !self.has_lock(),
-    //         !old(self).has_lock() ==> opt_lock.is_None()
+    // This one should fail linearity check
+    // pub proof fn grant_bogus(tracked self) -> (tracked opt_lock: Option<Lock>)
+    //     // ensures 
+    //     //     self.id == old(self).id,
+    //     //     self.n == old(self).n,
+    //     //     !self.has_lock(),
+    //     //     !old(self).has_lock() ==> opt_lock.is_None()
     // {
-    //     // let tracked mut server = tracked self;
     //     if self.has_lock() {
-    //         let tracked lock = tracked self.token.get_Some_0();
-    //         self.token = Option::Some(lock);
-    //         // Option::Some(lock)
-
-
-    //         Option::None
+    //         if let Option::Some(lock) = tracked self.token {
+    //             /* Note: Can't mutate self.token, so using myLock in its place */
+    //             let tracked myLock = tracked Option::Some(lock);
+    //             return tracked Option::Some(lock);
+    //         }
+    //         return Option::None;
     //     } else {
-    //         Option::None
+    //         return Option::None;
     //     }
     // }
 

@@ -33,59 +33,85 @@ impl System {
         }
     }
 
-    pub proof fn next_one_node_grant(&mut self, actor: int)
+    pub proof fn next_one_node_grant(tracked self, actor: int) -> (system_next: System)
         requires 
-            0 <= actor < old(self).n,
-            old(self).inv(),
+            0 <= actor < self.n,
+            self.inv(),
         ensures 
-            self.inv()
+            system_next.inv()
     {
         if actor == 0 {
-            let ServerLockPair{ s: node0_next, l: lock_opt } = self.node0.grant();
+            let ServerLockPair{ s: node0_next, l: lock_opt } = 
+                    tracked self.node0.grant();
             if lock_opt.is_Some() {
-                self.curr_epoch = self.node0.epoch + 1;
-                self.in_flight_lock = lock_opt;
-                self.node0 = node0_next;
+                return System {
+                    node0: node0_next,
+                    node1: self.node1,
+                    n: self.n,
+                    curr_epoch: self.node0.epoch + 1,
+                    in_flight_lock: lock_opt,
+                };
+            } else {
+                return self;
             }
         } else {
-            let ServerLockPair{ s: node1_next, l: lock_opt } = self.node1.grant();
+            let tracked  ServerLockPair{ s: node1_next, l: lock_opt } = 
+                    tracked self.node1.grant();
             if lock_opt.is_Some() {
-                self.curr_epoch = self.node1.epoch + 1;
-                self.in_flight_lock = lock_opt;
-                self.node1 = node1_next;
+                return System {
+                    node0: self.node0,
+                    node1: node1_next,
+                    n: self.n,
+                    curr_epoch: self.node0.epoch + 1,
+                    in_flight_lock: lock_opt,
+                };
+            } else {
+                return self;
             }
         }
     }
 
-    pub proof fn next_one_node_accept(&mut self, actor: int)
+    pub proof fn next_one_node_accept(tracked self, actor: int) -> (system_next: System)
         requires 
-            0 <= actor < old(self).n,
-            old(self).inv(),
+            0 <= actor < self.n,
+            self.inv(),
         ensures 
-            self.inv()
+            system_next.inv()
     {
         if actor == 0 {
-            let ServerLockPair{ s: node0_next, l: lock_opt } = self.node0.accept(self.in_flight_lock, self.curr_epoch);
-            self.node0 = node0_next;
-            self.in_flight_lock = lock_opt;
+            let tracked ServerLockPair{ s: node0_next, l: lock_opt } = 
+                    tracked self.node0.accept(self.in_flight_lock, self.curr_epoch);
+            return System {
+                node0: node0_next,
+                node1: self.node1,
+                n: self.n,
+                curr_epoch: self.node0.epoch,
+                in_flight_lock: lock_opt,
+            };
         } else {
-            let ServerLockPair{ s: node1_next, l: lock_opt } = self.node1.accept(self.in_flight_lock, self.curr_epoch);
-            self.node1 = node1_next;
-            self.in_flight_lock = lock_opt;
+            let tracked ServerLockPair{ s: node1_next, l: lock_opt } = 
+                    tracked self.node1.accept(self.in_flight_lock, self.curr_epoch);
+            return System {
+                node0: self.node0,
+                node1: node1_next,
+                n: self.n,
+                curr_epoch: self.node0.epoch,
+                in_flight_lock: lock_opt,
+            };
         }
     }
 
-    pub proof fn system_next(&mut self, actor: int, grant_step: bool) 
+    pub proof fn system_next(tracked self, actor: int, grant_step: bool) -> (system_next: System)
         requires 
-            0 <= actor < old(self).n,
-            old(self).inv(),
+            0 <= actor < self.n,
+            self.inv(),
         ensures 
-            self.inv()
+            system_next.inv()
     {
         if grant_step {
-            self.next_one_node_grant(actor)
+            tracked self.next_one_node_grant(actor)
         } else {
-            self.next_one_node_accept(actor)
+            tracked self.next_one_node_accept(actor)
         }
     }
 

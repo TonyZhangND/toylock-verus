@@ -44,8 +44,12 @@ impl Server {
         ensures 
             self.id == slp.s.id,
             self.n == slp.s.n,
-            !slp.s.has_lock(),
-            !self.has_lock() ==> slp.l.is_None()
+
+            // If I don't have lock initially, I can't conjure locks
+            !self.has_lock() ==> !slp.s.has_lock() && slp.l.is_None(),
+
+            // Can't duplicate the lock
+            !(slp.s.has_lock() && slp.l.is_Some()),
     {
         if self.has_lock() {
             let tracked opt_token = tracked self.token;
@@ -75,13 +79,20 @@ impl Server {
 
     pub proof fn accept(tracked self, tracked in_flight_lock: Option<Lock>, tracked new_epoch: nat) 
     -> ( tracked slp: ServerLockPair)
+        requires
+            in_flight_lock.is_Some() ==> !self.has_lock()
         ensures 
             self.id == slp.s.id,
             self.n == slp.s.n,
-            self.token.is_None() && slp.s.token.is_Some() ==> slp.l.is_None(),
-            in_flight_lock.is_None() ==> slp.l.is_None() && slp.s.token === self.token
+
+            // If no lock in the sky initially, then no lock in the sky afterwards,
+            // and no change to server
+            in_flight_lock.is_None() ==> slp.l.is_None() && slp.s.token === self.token,
+
+            // Can't duplicate the lock
+            !(slp.s.has_lock() && slp.l.is_Some()),
     {
-        if in_flight_lock.is_Some() && new_epoch > self.epoch && self.token.is_None() {
+        if in_flight_lock.is_Some() && new_epoch > self.epoch {
             if let Option::Some(lock) = tracked in_flight_lock {
                 let tracked new_server = tracked Server {
                     id: self.id,

@@ -48,7 +48,7 @@ impl Server {
             // If I don't have lock initially, I can't conjure locks
             !self.has_lock() ==> !slp.s.has_lock() && slp.l.is_None(),
 
-            // Can't duplicate the lock
+            // Can't duplicate the lock. This property implies in_flight_lock_property()
             !(slp.s.has_lock() && slp.l.is_Some()),
     {
         if self.has_lock() {
@@ -80,7 +80,8 @@ impl Server {
     pub proof fn accept(tracked self, tracked in_flight_lock: Option<Lock>, tracked new_epoch: nat) 
     -> ( tracked slp: ServerLockPair)
         requires
-            in_flight_lock.is_Some() ==> !self.has_lock()
+            // this is actually implied by the general non-duplication property
+            in_flight_lock.is_Some() ==> !self.has_lock()  
         ensures 
             self.id == slp.s.id,
             self.n == slp.s.n,
@@ -89,7 +90,7 @@ impl Server {
             // and no change to server
             in_flight_lock.is_None() ==> slp.l.is_None() && slp.s.token === self.token,
 
-            // Can't duplicate the lock
+            // Can't duplicate the lock. This property implies in_flight_lock_property()
             !(slp.s.has_lock() && slp.l.is_Some()),
     {
         if in_flight_lock.is_Some() && new_epoch > self.epoch {

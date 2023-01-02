@@ -44,13 +44,19 @@ impl System {
             let ServerLockPair{ s: node0_next, l: lock_opt } = 
                     tracked self.node0.grant();
             if lock_opt.is_Some() {
-                return System {
+                let res = System {
                     node0: node0_next,
                     node1: self.node1,
                     n: self.n,
                     curr_epoch: self.node0.epoch + 1,
                     in_flight_lock: lock_opt,
                 };
+                
+                assert(res.wf());
+                assert(res.safety());
+                assert(res.in_flight_lock_property());
+
+                return res
             } else {
                 return self;
             }
@@ -135,7 +141,8 @@ impl System {
         ! (self.node0.has_lock() && self.node1.has_lock())
     }
 
-    pub open spec fn in_flight_lock_property(self) -> bool {
+    pub open spec fn in_flight_lock_property(self) -> bool {  
+        // this is actually implied by the general non-duplication property
         self.somebody_has_lock() ==> self.in_flight_lock.is_None()
     }
 

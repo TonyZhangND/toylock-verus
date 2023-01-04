@@ -9,6 +9,19 @@ use crate::server::*;
 
 verus! {
 
+/* Functional style is required.
+    1. Predicate style does not work, because we need to reason about mutability
+    2. Imperative style does not work, because of verus constraints. E.g. need to talk about &mut
+    
+
+  General properties:
+  1. Non-duplication: 
+        self.somebody_has_lock() ==> self.in_flight_lock.is_None() 
+        At most one server has lock (safety)
+  2. Non-destruction:
+        self.in_flight_lock.is_None()  ==> self.somebody_has_lock(). Note that this is not needed for this proof
+*/
+
 pub struct System {
     pub node0: Server,
     pub node1: Server,

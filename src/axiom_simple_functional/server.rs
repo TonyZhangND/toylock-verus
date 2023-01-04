@@ -52,18 +52,18 @@ impl Server {
             !(slp.s.has_lock() && slp.l.is_Some()),
     {
         if self.has_lock() {
-            let tracked opt_token = tracked self.token;
-            if let Option::Some(lock) = tracked opt_token {
+            if let Option::Some(lock) = tracked self.token {
                 // creating new server because verus does not allow &mut self in spec functions
                 let tracked new_server = tracked Server {
                     id: self.id,
-                    // TONY: How to prevent user from creating new token?
+                    // TONY: How to prevent user from creating new token? Make lock constructor private?
                     token: Option::None,
                     epoch: self.epoch,
                     n: self.n,
                 };
                 return tracked ServerLockPair{s: new_server, l: Option::Some(lock)};
             } else {
+                // Note that I have to create a copy of self here, because server is partially moved in the "if-let" statement
                 let tracked new_server = tracked Server {
                     id: self.id,
                     token: Option::None,
@@ -80,7 +80,7 @@ impl Server {
     pub proof fn accept(tracked self, tracked in_flight_lock: Option<Lock>, tracked new_epoch: nat) 
     -> ( tracked slp: ServerLockPair)
         requires
-            // this is actually implied by the general non-duplication property
+            // this is the contrapositive of the general non-duplication property
             in_flight_lock.is_Some() ==> !self.has_lock()  
         ensures 
             self.id == slp.s.id,

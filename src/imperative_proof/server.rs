@@ -53,24 +53,24 @@ impl Server {
     }
 
     // This one should fail linearity check
-    // pub proof fn grant_bogus(tracked self) -> (tracked opt_lock: Option<Lock>)
-    //     // ensures 
-    //     //     self.id == old(self).id,
-    //     //     self.n == old(self).n,
-    //     //     !self.has_lock(),
-    //     //     !old(self).has_lock() ==> opt_lock.is_None()
-    // {
-    //     if self.has_lock() {
-    //         if let Option::Some(lock) = tracked self.token {
-    //             /* Note: Can't mutate self.token, so using myLock in its place */
-    //             let tracked myLock = tracked Option::Some(lock);
-    //             return tracked Option::Some(lock);
-    //         }
-    //         return Option::None;
-    //     } else {
-    //         return Option::None;
-    //     }
-    // }
+    pub proof fn grant_bogus(tracked &mut self) -> (tracked opt_lock: Option<Lock>)
+        // ensures 
+        //     self.id == old(self).id,
+        //     self.n == old(self).n,
+        //     !self.has_lock(),
+        //     !old(self).has_lock() ==> opt_lock.is_None()
+    {
+        if self.has_lock() {
+            if let Option::Some(lock) = tracked self.token {
+                /* Note: Can't mutate self.token, so using myLock in its place */
+                let tracked myLock = tracked Option::Some(lock);
+                return tracked Option::Some(lock);
+            }
+            return Option::None;
+        } else {
+            return Option::None;
+        }
+    }
 
     pub proof fn accept(&mut self, in_flight_lock: Option<Lock>, new_epoch: nat) -> (opt_lock: Option<Lock>)
         ensures 

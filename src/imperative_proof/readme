@@ -1,0 +1,2 @@
+Imperative-style transitions written using `proof` functions. 
+Does not work because of limited support for `&mut` types. 

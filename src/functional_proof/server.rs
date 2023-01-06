@@ -53,7 +53,6 @@ impl Server {
     {
         if self.has_lock() {
             if let Option::Some(lock) = tracked self.token {
-                // creating new server because verus does not allow &mut self in spec functions
                 let tracked new_server = tracked Server {
                     id: self.id,
                     // TONY: How to prevent user from creating new token? Make lock constructor private?

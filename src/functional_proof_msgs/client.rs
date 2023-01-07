@@ -15,9 +15,9 @@ pub struct Client {
     pub token: Option<Lock>,
 }
 
-pub struct ClientLockPair {
-    pub s: Client,
-    pub l: Option<Lock>,
+pub struct ClientMsgPair {
+    pub c: Client,
+    pub m: Option<Message>,
 }
 
 impl Client {
@@ -35,65 +35,32 @@ impl Client {
         }
     }
 
-    // TONY: I am doing this clp pair thing just so I can talk about the return value in 
-    // the pre/post-conditions. Otherwise, I cannot name both items in a tuple return value
-    pub proof fn grant(tracked self) -> (tracked clp: ClientLockPair)
-        ensures 
-            clp.s.id == self.id,
-
-            // If I don't have lock initially, I can't conjure locks
-            !self.has_lock() ==> !clp.s.has_lock() && clp.l.is_None(),
-
-            // Can't duplicate the lock. This property implies in_flight_lock_property()
-            !(clp.s.has_lock() && clp.l.is_Some()),
+    pub proof fn grant(self) -> (cmp: ClientMsgPair)
     {
-        if self.has_lock() {
-            if let Option::Some(lock) = tracked self.token {
-                let tracked new_client = tracked Client {
-                    id: self.id,
-                    // TONY: How to prevent user from creating new token? Make lock constructor private?
-                    token: Option::None,
-                };
-                return tracked ClientLockPair{s: new_client, l: Option::Some(lock)};
-            } else {
-                // Note that I have to create a copy of self here, because client is partially moved in the "if-let" statement
-                let tracked new_client = tracked Client {
-                    id: self.id,
-                    token: Option::None,
-                };
-                return tracked ClientLockPair{s: new_client, l: Option::None};
-            }
+        if let Option::Some(lock) = self.token {
+            let new_client = Client {
+                id: self.id,
+                token: Option::None,
+            };
+            let msg = Message::Release{ src: self.id, lock: lock };
+            return ClientMsgPair{ c: new_client, m: Option::Some(msg) };
         } else {
-            return tracked ClientLockPair{s: self, l: Option::None};
+            return ClientMsgPair{ c: self, m: Option::None};
         }
     }
 
-    pub proof fn accept(tracked self, tracked in_flight_lock: Option<Lock>) 
-    -> ( tracked clp: ClientLockPair)
-        requires
-            // this is the contrapositive of the general non-duplication property
-            in_flight_lock.is_Some() ==> !self.has_lock()  
-        ensures 
-            clp.s.id == self.id,
-
-            // If no lock in the sky initially, then no lock in the sky afterwards,
-            // and no change to client
-            in_flight_lock.is_None() ==> clp.l.is_None() && clp.s.token === self.token,
-
-            // Can't duplicate the lock. This property implies in_flight_lock_property()
-            !(clp.s.has_lock() && clp.l.is_Some()),
+    pub proof fn accept(self, msg: Message) -> (cmp: ClientMsgPair)
     {
-        if in_flight_lock.is_Some() {
-            if let Option::Some(lock) = tracked in_flight_lock {
-                let tracked new_client = tracked Client {
+        if let Message::Grant {dst: dst, lock: lock} = msg {
+            if dst == self.id {
+                let new_client = Client {
                     id: self.id,
                     token: Option::Some(lock),
                 };
-                return tracked ClientLockPair{s: new_client, l: Option::None};
-            }
-            return tracked ClientLockPair{s: self, l: Option::None};
+                return ClientMsgPair{c: new_client, m: Option::None};
+            } 
         }
-        return tracked ClientLockPair{s: self, l: in_flight_lock};
+        return ClientMsgPair{c: self, m: Option::None};
     }
 
     pub open spec fn has_lock(self) -> bool {

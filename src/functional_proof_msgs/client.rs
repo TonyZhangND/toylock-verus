@@ -35,7 +35,7 @@ impl Client {
         }
     }
 
-    pub proof fn grant(self) -> (cmp: ClientMsgPair)
+    pub proof fn release(self) -> (cmp: ClientMsgPair)
     {
         if let Option::Some(lock) = self.token {
             let new_client = Client {

@@ -43,9 +43,9 @@ impl Server {
                 token: Option::None,
             };
             let msg = Message::Grant{ dst: dst, lock: lock };
-            return tracked ServerMsgPair{s: self, m: Option::Some(msg)};
+            return ServerMsgPair{s: new_server, m: Option::Some(msg)};
         } else {
-            return tracked ServerMsgPair{s: self, m: Option::None};
+            return ServerMsgPair{s: self, m: Option::None};
         }
     }
 
@@ -56,9 +56,9 @@ impl Server {
                 num_clients: self.num_clients,
                 token: Option::Some(lock),
             };
-            return tracked ServerMsgPair{s: new_server, m: Option::None};
+            return ServerMsgPair{s: new_server, m: Option::None};
         } else {
-            return tracked ServerMsgPair{s: self, m: Option::None};
+            return ServerMsgPair{s: self, m: Option::None};
         }
     }
 

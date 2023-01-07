@@ -3,6 +3,7 @@ mod option;
 
 mod types;
 mod client;
-mod distributed_system;
+mod server;
+// mod distributed_system;
 
 fn main(){}

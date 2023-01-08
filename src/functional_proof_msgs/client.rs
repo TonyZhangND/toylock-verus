@@ -15,7 +15,8 @@ pub struct Client {
     pub token: Option<Lock>,
 }
 
-pub struct ClientMsgPair {
+pub struct ClientOpResult {
+    pub x: bool,  // did the operation succeed?
     pub c: Client,
     pub m: Option<Message>,
 }
@@ -35,7 +36,8 @@ impl Client {
         }
     }
 
-    pub proof fn release(self) -> (cmp: ClientMsgPair)
+    pub proof fn release(self) -> (op_res: ClientOpResult)
+        ensures self.preserve_consts(op_res.c)
     {
         if let Option::Some(lock) = self.token {
             let new_client = Client {
@@ -43,28 +45,33 @@ impl Client {
                 token: Option::None,
             };
             let msg = Message::Release{ src: self.id, lock: lock };
-            return ClientMsgPair{ c: new_client, m: Option::Some(msg) };
+            return ClientOpResult{ x: true, c: new_client, m: Option::Some(msg) };
         } else {
-            return ClientMsgPair{ c: self, m: Option::None};
+            return ClientOpResult{ x: false, c: self, m: Option::None};
         }
     }
 
-    pub proof fn accept(self, msg: Message) -> (cmp: ClientMsgPair)
+    pub proof fn accept(self, msg: Message) -> (op_res: ClientOpResult)
+        ensures self.preserve_consts(op_res.c)
     {
-        if let Message::Grant {dst: dst, lock: lock} = msg {
+        if let Message::Grant {dst, lock} = msg {
             if dst == self.id {
                 let new_client = Client {
                     id: self.id,
                     token: Option::Some(lock),
                 };
-                return ClientMsgPair{c: new_client, m: Option::None};
+                return ClientOpResult{x: true, c: new_client, m: Option::None};
             } 
         }
-        return ClientMsgPair{c: self, m: Option::None};
+        return ClientOpResult{x: false, c: self, m: Option::None};
     }
 
     pub open spec fn has_lock(self) -> bool {
         self.token.is_Some()
+    }
+
+    pub open spec fn preserve_consts(self, new_client: Client) -> bool {
+        self.id == new_client.id
     }
 }
 

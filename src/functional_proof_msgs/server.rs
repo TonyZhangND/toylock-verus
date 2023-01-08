@@ -14,7 +14,8 @@ pub struct Server {
     pub token: Option<Lock>,
 }
 
-pub struct ServerMsgPair {
+pub struct ServerOpResult {
+    pub x: bool,
     pub s: Server,
     pub m: Option<Message>,
 }
@@ -34,36 +35,42 @@ impl Server {
         }
     }
 
-    pub proof fn grant_to_client(self, dst: nat) -> (smp: ServerMsgPair) 
+    pub proof fn grant_to_client(self, dst: nat) -> (op_res: ServerOpResult) 
         requires 0 <= dst < self.num_clients
+        ensures self.preserve_consts(op_res.s)
     {
         if let Option::Some(lock) = self.token {
             let new_server = Server {
                 num_clients: self.num_clients,
                 token: Option::None,
             };
-            let msg = Message::Grant{ dst: dst, lock: lock };
-            return ServerMsgPair{s: new_server, m: Option::Some(msg)};
+            let msg = Message::Grant{ dst, lock };
+            return ServerOpResult{x: true, s: new_server, m: Option::Some(msg)};
         } else {
-            return ServerMsgPair{s: self, m: Option::None};
+            return ServerOpResult{x: false, s: self, m: Option::None};
         }
     }
 
-    pub proof fn receive_lock(self, msg: Message) -> (smp: ServerMsgPair) 
+    pub proof fn receive_lock(self, msg: Message) -> (op_res: ServerOpResult) 
+        ensures self.preserve_consts(op_res.s)
     {
         if let Message::Release{ src: _, lock: lock } = msg {
             let new_server = Server {
                 num_clients: self.num_clients,
                 token: Option::Some(lock),
             };
-            return ServerMsgPair{s: new_server, m: Option::None};
+            return ServerOpResult{x: true, s: new_server, m: Option::None};
         } else {
-            return ServerMsgPair{s: self, m: Option::None};
+            return ServerOpResult{x: false, s: self, m: Option::None};
         }
     }
 
     pub open spec fn has_lock(self) -> bool {
         self.token.is_Some()
+    }
+
+    pub open spec fn preserve_consts(self, new_server: Server) -> bool {
+        self.num_clients == new_server.num_clients
     }
 }  // impl Server
 }  // verus!
